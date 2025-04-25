@@ -1,0 +1,142 @@
+---
+title: "Diabetes Dashboard"
+author: "Jiayi Zhang"
+date: "2025-04-25"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: scroll
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(readr)  
+library(rmarkdown)
+options(scipen = 999)
+```
+
+Overview
+=======================================================================
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+### Diabetes Prevalence by Age Group
+
+```{r widget1, echo=FALSE, warning=FALSE, message=FALSE, results="asis"}
+# read
+file_path <- "C:/Users/grezh/Desktop/DATA555/archive/diabetes_012_health_indicators_BRFSS2015.csv"
+df <- read_csv(file_path, show_col_types = FALSE)
+
+# preprocessing
+df_selected <- df %>%
+  select(Diabetes_012, Age, BMI, PhysActivity, Smoker, HighBP, HighChol, Sex)
+
+df_selected$Diabetes_012 <- factor(df_selected$Diabetes_012,
+                                   levels = c(0, 1, 2),
+                                   labels = c("No Diabetes", "Prediabetes", "Diabetes"))
+
+df_selected$Age <- factor(df_selected$Age,
+                          levels = 1:13,
+                          labels = c("18-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54",
+                                     "55-59", "60-64", "65-69", "70-74", "75-79", "80+"))
+
+df_selected <- df_selected %>% filter(BMI <= 80)
+
+# Prepare data
+df_plot <- df_selected %>%
+  group_by(Age, Diabetes_012) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(Age) %>%
+  mutate(percentage = count / sum(count) * 100, total_n = sum(count))
+
+# Plot
+p1 <- ggplot(df_plot, aes(x = Age, y = percentage, fill = Diabetes_012,
+                          text = paste0("Age: ", Age, 
+                                        "<br>Diabetes: ", Diabetes_012,
+                                        "<br>Percentage: ", round(percentage, 1), "%",
+                                        "<br>Total N: ", total_n))) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = c("#1b9e77", "#ff7f00", "#7570b3")) +
+  labs(title = "Diabetes Prevalence by Age Group",
+       x = "Age Group", y = "Percentage (%)", fill = "Diabetes Status") +
+  theme_minimal()
+
+plotly1 <- ggplotly(p1, tooltip = "text")
+plotly1
+```
+
+### 🔹 Key Takeaways
+
+- Diabetes prevalence increases significantly with age.
+- Individuals aged 60 years and older have the highest diabetes rates.
+- Prediabetes remains relatively low across all age groups, which may indicate underdiagnosis or underreporting.
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### BMI Distribution by Diabetes Status
+
+```{r widget2, echo=FALSE, warning=FALSE, message=FALSE, results="asis"}
+# box plot
+p2 <- ggplot(df_selected, aes(x = Diabetes_012, y = BMI, fill = Diabetes_012)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, color = "black") +  # 添加均值 (X)
+  stat_summary(fun = median, geom = "point", shape = 3, size = 3, color = "red") +   # 添加中位数 (+)
+  labs(title = "BMI Distribution by Diabetes Status",
+       x = "Diabetes Status", y = "BMI (kg/m²)", fill = "Diabetes Status") +
+  scale_fill_manual(values = c("#1b9e77", "#ff7f00", "#7570b3")) +
+  theme_minimal()
+
+plotly2 <- ggplotly(p2, tooltip = "y")
+plotly2
+```
+
+### 🔹 Key Takeaways
+
+- Individuals with diabetes tend to have higher median BMI than those without diabetes.
+- Higher BMI values are strongly associated with an increased risk of diabetes.
+- Outliers with extreme BMI (>80) were removed to enhance visualization clarity.
+
+### Interactive Data Table
+
+```{r widget3, echo=FALSE, warning=FALSE, message=FALSE, results="asis"}
+datatable(df_selected,
+          options = list(pageLength = 10, autoWidth = TRUE, searchHighlight = TRUE),
+          filter = "top", rownames = FALSE)
+```
+
+### 🔹 Key Takeaways
+
+- The table allows users to search, filter, and explore diabetes health indicators interactively.
+- Filtering for higher BMI values (e.g., BMI > 30) can reveal potential patterns in diabetes prevalence.
+
+Dataset
+=======================================================================
+
+### Dataset Description
+
+- **Source:** [Diabetes Health Indicators Dataset on Kaggle](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset)
+- **Sample Size:** 253,680 records
+- **Data Collection Method:** Survey responses collected by the Behavioral Risk Factor Surveillance System (BRFSS) in 2015.
+- **Study Population:** Adults aged 18 years and older living in the United States.
+- **Time Period:** Data collected during the 2015 calendar year.
+
+About
+=======================================================================
+
+### Project Importance
+
+This dashboard provides interactive insights into key risk factors for diabetes.  
+It helps public health practitioners design targeted interventions to reduce diabetes prevalence.
+
+---
+
+### Source Code Repository
+
+You can view the full source code for this dashboard on GitHub:  
+[GitHub Repository Link](https://github.com/Jiayi-618/diabetes_dashboard)
+
